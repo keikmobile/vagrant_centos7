@@ -17,34 +17,37 @@
   tasks:
   - name: install
     yum:
-      name: "{{ item }}"
-      state: installed
-    with_items:
-    - epel-release
-    - gcc
-    - make
-    - strace
-    - sysstat
-    - lsof
-    - tcpdump
-    - wireshark
-    - telnet
-    - nc
-    - traceroute
-    - git
-    - patch
-    - tmux
-    - bash-completion
-    - bind
-    - libselinux-python
-    - postfix
-    - pypolicyd-spf
-    - opendkim
-    - opendmarc
-    - dovecot
-    - openssl-devel
-    - readline-devel
-    - zlib-devel
+      name: 
+        - 'epel-release'
+        - 'gcc'
+        - 'make'
+        - 'strace'
+        - 'sysstat'
+        - 'lsof'
+        - 'tcpdump'
+        - 'wireshark'
+        - 'telnet'
+        - 'nc'
+        - 'traceroute'
+        - 'git'
+        - 'patch'
+        - 'tmux'
+        - 'bash-completion'
+        - 'bind'
+        - 'libselinux-python'
+        - 'postfix'
+        - 'dovecot'
+        - 'openssl-devel'
+        - 'readline-devel'
+        - 'zlib-devel'
+      state: present
+
+  - name: install
+    yum:
+      name: 
+        - 'pypolicyd-spf'
+        - 'opendkim'
+      state: present
 
   - name: mkdir
     file:
