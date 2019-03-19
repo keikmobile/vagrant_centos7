@@ -1,0 +1,196 @@
+---
+- hosts: all
+  become: yes
+  vars:
+    user_home: "/home/vagrant"
+    user_local: "/home/vagrant/local"
+    perl_version: "5.26.1"
+    python_version: "3.6.4"
+    ruby_version: "2.4.2"
+    xbuild_inst:
+      perl:
+        version: "5.26.1"
+      python:
+        version: "3.6.4"
+      ruby:
+        version: "2.4.2"
+  tasks:
+  - name: install
+    yum:
+      name: "{{ item }}"
+      state: installed
+    with_items:
+    - epel-release
+    - gcc
+    - make
+    - strace
+    - sysstat
+    - lsof
+    - tcpdump
+    - wireshark
+    - telnet
+    - nc
+    - traceroute
+    - git
+    - patch
+    - tmux
+    - bash-completion
+    - bind
+    - libselinux-python
+    - postfix
+    - pypolicyd-spf
+    - opendkim
+    - opendmarc
+    - dovecot
+    - openssl-devel
+    - readline-devel
+    - zlib-devel
+
+  - name: mkdir
+    file:
+      path: "{{ user_local }}"
+      state: directory
+
+  - name: home
+    copy:
+      src: files/home/bash_profile
+      dest: "{{ user_home }}/.bash_profile"
+      backup: yes
+
+  - git:
+      repo: "https://github.com/tagomoris/xbuild.git"
+      dest: "{{ user_local }}/xbuild"
+      update: no
+
+  - name: xbuld install perl/python/ruby
+    shell: "{{ user_local }}/xbuild/{{ item.key }}-install {{ item.value.version }} {{ user_local }}/{{ item.key }}-{{ item.value.version }}"
+    args:
+      creates: "{{ user_local }}/{{ item.key }}"
+    with_dict: "{{ xbuild_inst }}"
+
+  - shell: "ln -s {{ user_local }}/{{ item.key }}-{{ item.value.version }} {{ user_local }}/{{ item.key }}"
+    args:
+      creates: "{{ user_local }}/{{ item.key }}"
+    with_dict: "{{ xbuild_inst }}"
+
+  - selinux: state=disabled
+
+  - name: skel Maildir
+    file:
+      path: "/etc/skel/Maildir/{{ item }}"
+      state: directory
+      mode: 0700
+    with_items:
+    - new
+    - cur
+    - tmp
+
+  - name: ssh sshd_config
+    copy:
+      src: files/ssh/sshd_config
+      dest: /etc/ssh/sshd_config
+      owner: root
+      group: root
+      mode: 0644
+      backup: yes
+
+  - name: resolv.conf
+    copy:
+      src: files/resolv.conf
+      dest: /etc/resolv.conf
+      owner: root
+      group: root
+      mode: 0644
+      backup: yes
+
+  - name: named conf
+    copy:
+      src: files/named/named.conf
+      dest: /etc/named.conf
+      owner: root
+      group: root
+      mode: 0644
+      backup: yes
+
+  - name: named zone
+    copy:
+      src: files/named/example.com.zone
+      dest: /var/named/example.com.zone
+      owner: root
+      group: root
+      mode: 0644
+      backup: yes
+
+  - name: postfix main.cf
+    copy:
+      src: "files/postfix/{{ item }}"
+      dest: /etc/postfix/
+      owner: root
+      group: root
+      mode: 0644
+      backup: yes
+    with_items:
+    - main.cf
+    - master.cf
+
+  - name: smtp-sink
+    shell: smtp-sink -R /home/vagrant -u vagrant -d sink/%Y%m%d%H/%M. 127.0.0.1:10025 5 &
+    args:
+      creates: /home/vagrant/sink.file
+
+  - name: opendkim
+    copy:
+      src: files/opendkim/opendkim.conf
+      dest: /etc/opendkim.conf
+      owner: root
+      group: root
+      mode: 0644
+      backup: yes
+
+  - name: genkey for dkim
+    shell: opendkim-genkey -D /etc/opendkim/keys/
+    args:
+      creates: /etc/opendkim/keys/default.private
+
+  - name: opendmarc
+    copy:
+      src: files/opendmarc/opendmarc.conf
+      dest: /etc/opendmarc.conf
+      owner: root
+      group: root
+      mode: 0644
+      backup: yes
+
+  - name: dovecot user
+    copy:
+      src: files/dovecot/users
+      dest: /etc/dovecot/users
+      owner: root
+      group: root
+      mode: 0644
+      backup: yes
+
+  - name: dovecot conf.d
+    copy:
+      src: "files/dovecot/conf.d/{{ item }}"
+      dest: /etc/dovecot/conf.d
+      owner: root
+      group: root
+      mode: 0644
+      backup: yes
+    with_items:
+    - 10-auth.conf
+    - 10-ssl.conf
+    - 10-mail.conf
+
+  - service:
+      name: "{{ item }}"
+      enabled: yes
+      state: restarted
+    with_items:
+    - sshd
+    - named
+    - postfix
+    - dovecot
+ #   - opendkim
+ #   - opendmarc

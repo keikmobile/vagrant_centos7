@@ -1,1 +1,1 @@
-# vagrant_centos7
+# vagrant_centos
